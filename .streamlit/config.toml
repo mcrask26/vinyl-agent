@@ -1,0 +1,16 @@
+# App-wide look: warm "record shop" palette.
+[theme]
+base = "light"
+primaryColor = "#B4441C"             # burnt orange (buttons, links, active page)
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F6F3EE" # inputs, sidebar, panels
+textColor = "#1C1917"
+borderColor = "#E7E2DA"
+baseRadius = "6px"
+showWidgetBorder = true
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false

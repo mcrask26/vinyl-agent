@@ -1,0 +1,21 @@
+# Secrets - never commit these
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Your saved data (collection, wishlist, alerts, price history)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# macOS
+.DS_Store
+shelf_videos/
+
+# Claude Code local settings
+.claude/

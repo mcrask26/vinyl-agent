@@ -1,0 +1,96 @@
+{
+ "id": 1528418,
+ "status": "Accepted",
+ "year": 1984,
+ "resource_url": "https://api.discogs.com/releases/1528418",
+ "uri": "https://www.discogs.com/release/1528418-Voodoo-Idols-Temptation",
+ "artists": [
+  {
+   "name": "Voodoo Idols",
+   "anv": "",
+   "join": "",
+   "role": "",
+   "tracks": "",
+   "id": 414013,
+   "resource_url": "https://api.discogs.com/artists/414013"
+  }
+ ],
+ "artists_sort": "Voodoo Idols",
+ "labels": [
+  {
+   "name": "Veedee Records",
+   "catno": "NR15765-2",
+   "entity_type": "1",
+   "entity_type_name": "Label",
+   "id": 130417,
+   "resource_url": "https://api.discogs.com/labels/130417"
+  }
+ ],
+ "series": [],
+ "formats": [
+  {
+   "name": "Vinyl",
+   "qty": "1",
+   "descriptions": [
+    "LP",
+    "Album",
+    "45 RPM"
+   ]
+  }
+ ],
+ "data_quality": "Needs Vote",
+ "community": {
+  "have": 76,
+  "want": 51,
+  "rating": {
+   "count": 12,
+   "average": 3.92
+  },
+  "submitter": {
+   "username": "isaRRecords",
+   "resource_url": "https://api.discogs.com/users/isaRRecords"
+  },
+  "contributors": [
+   {
+    "username": "isaRRecords",
+    "resource_url": "https://api.discogs.com/users/isaRRecords"
+   },
+   {
+    "username": "under-the-wires",
+    "resource_url": "https://api.discogs.com/users/under-the-wires"
+   }
+  ],
+  "data_quality": "Needs Vote",
+  "status": "Accepted"
+ },
+ "format_quantity": 1,
+ "date_added": "2008-11-09T11:58:48-08:00",
+ "date_changed": "2016-08-11T10:32:26-07:00",
+ "num_for_sale": 10,
+ "lowest_price": 10.99,
+ "title": "Temptation",
+ "country": "US",
+ "released": "1984",
+ "notes": "With 2 inlets: A small black and white tour poster and a lyric sheet.",
+ "released_formatted": "1984",
+ "identifiers": [],
+ "genres": [
+  "Rock"
+ ],
+ "styles": [
+  "Punk",
+  "New Wave",
+  "Goth Rock"
+ ],
+ "images": [
+  {
+   "type": "primary",
+   "uri": "https://i.discogs.com/example.jpg",
+   "uri150": "https://i.discogs.com/example-150.jpg"
+  }
+ ],
+ "thumb": "https://i.discogs.com/f2gqcHB297LOP2dqc2yMsnDOxIsJRAA_DJ_UeruEb-I/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTE1Mjg0/MTgtMTIyNjI2MDU1/Ny5qcGVn.jpeg",
+ "estimated_weight": 230,
+ "blocked_from_sale": false,
+ "is_offensive": false
+}

@@ -1,0 +1,14 @@
+{"pagination": {"page": 1, "pages": 1, "per_page": 12, "items": 3},
+ "results": [
+  {"id": 111, "type": "release", "title": "Led Zeppelin - Untitled", "year": "1971", "country": "UK",
+   "label": ["Atlantic", "Atlantic"], "catno": "2401012", "format": ["Vinyl", "LP", "Album"],
+   "thumb": "https://i.discogs.com/a.jpg", "cover_image": "https://i.discogs.com/a-big.jpg",
+   "uri": "/release/111-Led-Zeppelin-Untitled", "community": {"have": 9000, "want": 3000}},
+  {"id": 222, "type": "release", "title": "Led Zeppelin - Untitled", "year": "1971", "country": "US",
+   "label": ["Atlantic"], "catno": "SD 7208", "format": ["Vinyl", "LP", "Album"],
+   "thumb": "", "cover_image": "", "uri": "/release/222-Led-Zeppelin-Untitled",
+   "community": {"have": 5000, "want": 1000}},
+  {"id": 333, "type": "release", "title": "Led Zeppelin (2) - Untitled", "year": "", "country": "Europe",
+   "label": ["Atlantic"], "catno": "none", "format": ["Vinyl", "LP", "Reissue"],
+   "uri": "/release/333-x", "community": {"have": 12000, "want": 10}}
+ ]}
