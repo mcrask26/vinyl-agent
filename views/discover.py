@@ -122,7 +122,7 @@ with tab_recs:
     b1, b2 = st.columns([1, 2], vertical_alignment="center")
     use_claude = False
     if claude.enabled():
-        use_claude = b2.toggle("Let Claude pick the five and explain why (about 3 cents each time)", value=True,
+        use_claude = b2.toggle("Let Claude pick the five and explain why (about 1 cent each time)", value=True,
                                help="On: Claude chooses from the candidates the app found and writes each reason. "
                                     "Off: the app's built-in scoring picks them, for free.")
     if b1.button("Find recommendations" if not saved else "Refresh recommendations", type="primary",
