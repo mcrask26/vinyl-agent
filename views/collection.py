@@ -98,7 +98,8 @@ c1.metric("Total collection value", money(summary["total_typical"], cur) if summ
 c1.caption(md(f"Range {money_range(summary['total_low'], summary['total_high'], cur)}") if summary["valued"] else
            "No valued records yet.")
 c2.metric("Records", summary["count"])
-c2.caption(f"{summary['valued']} valued · {summary['unvalued']} without a value")
+c2.caption(f"{summary['valued']} valued · {summary['unvalued']} without a value"
+           + (f" · {summary['low_confidence']} low confidence" if summary.get("low_confidence") else ""))
 c3.metric("Last refreshed", ago(last_valued))
 with c4:
     refresh = st.button("Refresh values", icon=":material/refresh:", type="primary", disabled=not ready or not records,
@@ -319,6 +320,7 @@ for rec in records:
         "Low": v.get("low") if ok else None,
         "Typical": v.get("typical") if ok else None,
         "High": v.get("high") if ok else None,
+        "Confidence": (v.get("confidence") or "").capitalize() if ok else "",
         "Cheapest listing (not value)": for_sale(rec.get("market"), cur),
         "Note": value_note(rec),
         "Discogs": rel.get("url"),
@@ -341,6 +343,9 @@ st.dataframe(
         "Cheapest listing (not value)": st.column_config.TextColumn(
             help="How many copies of this pressing are listed on Discogs right now, and the cheapest asking "
                  "price in any condition (often a worn copy). Not what your record is worth."),
+        "Confidence": st.column_config.TextColumn(
+            help="How far to trust an eBay estimate. Good: 10 or more comparable listings of your pressing. "
+                 "Medium: 5 to 9, or other pressings mixed in. Low: fewer than 5, so treat it as a rough guide."),
         "Note": st.column_config.TextColumn(width="medium"),
         "Discogs": st.column_config.LinkColumn(display_text="Open"),
     },
@@ -369,6 +374,8 @@ with st.container(border=True):
                 st.markdown(md(f"Typical **{money(v['typical'], v['currency'])}** · "
                                f"range {money_range(v['low'], v['high'], v['currency'])}"))
                 st.caption(v["reason"])
+                if valuation.confidence_note(v):
+                    st.caption(f":material/info: {valuation.confidence_note(v)}")
             else:
                 st.warning(value_note(rec))
             if v.get("source") == "ebay" and v.get("listings"):

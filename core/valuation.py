@@ -70,6 +70,7 @@ def summarize(records: list) -> dict:
         "mixed_currency": len(currencies) > 1,
         "valued": len(valued),
         "unvalued": len(records) - len(valued),
+        "low_confidence": sum(1 for r in valued if r["value"].get("confidence") == LOW),
         "count": len(records),
     }
 
@@ -81,6 +82,10 @@ def most_valuable(records: list, n: int = 5) -> list:
 # ---------- Estimate from eBay listings (when Discogs prices are locked) ----------
 
 EBAY_MIN_LISTINGS = 3
+OUTLIER_TIMES = 4          # a listing over 4x the middle price of ALL copies of the record is ignored
+OUTLIER_MIN_LISTINGS = 5   # ...but only when there are enough copies to know what "the middle" is
+LOW, MEDIUM, GOOD = "low", "medium", "good"
+CONFIDENCE_TEXT = {LOW: "Low confidence", MEDIUM: "Medium confidence", GOOD: "Good confidence"}
 DECENT_GRADES = ("Near Mint (NM or M-)", "Very Good Plus (VG+)", "Very Good (VG)")
 
 
@@ -115,12 +120,51 @@ def estimate_from_listings(listings: list, condition: str, currency: str, basis:
     else:
         group = [l for l in graded if l["grade"] in DECENT_GRADES]
         what = "VG to NM copies (set your record's condition for a closer estimate)"
+    group, dropped = _without_outliers(group, listings)
+    ignored = (f" {dropped} listing{'s' if dropped != 1 else ''} priced far above the rest "
+               f"{'were' if dropped != 1 else 'was'} ignored.") if dropped else ""
     if len(group) < EBAY_MIN_LISTINGS:
         n = len(group)
         return dict(base, reason=f"Not enough comparable eBay listings right now ({n} of the {EBAY_MIN_LISTINGS} "
-                                 f"needed, {basis}), so the value is unknown.")
+                                 f"needed, {basis}), so the value is unknown.{ignored}")
     prices = sorted(l["price"] for l in group)
+    level = confidence(len(group), basis)
     return dict(base, status=OK, low=round(_pct(prices, 0.25), 2), typical=round(_pct(prices, 0.5), 2),
-                high=round(_pct(prices, 0.75), 2), count=len(group),
+                high=round(_pct(prices, 0.75), 2), count=len(group), confidence=level, ignored=dropped,
                 reason=f"Estimate from {len(group)} eBay listings of {what}, {basis}. These are asking prices, "
-                       "so actual sales are often a little lower.")
+                       f"so actual sales are often a little lower.{ignored}")
+
+
+def _without_outliers(group: list, all_listings: list):
+    """(group without listings priced far above the rest, how many were dropped).
+
+    "The rest" is every copy of the record on sale, whatever its grade, so a seller asking $80
+    for a record that otherwise goes for $11-$20 doesn't set the value.
+    """
+    prices = sorted(l["price"] for l in all_listings if l.get("price") is not None)
+    if len(prices) < OUTLIER_MIN_LISTINGS:
+        return group, 0
+    limit = _pct(prices, 0.5) * OUTLIER_TIMES
+    kept = [l for l in group if l["price"] <= limit]
+    return kept, len(group) - len(kept)
+
+
+def confidence(count: int, basis: str) -> str:
+    """How far to trust an eBay estimate: more listings, and the same pressing, mean more trust."""
+    level = GOOD if count >= 10 else MEDIUM if count >= 5 else LOW
+    if "any pressing" in (basis or "") and level != LOW:
+        level = MEDIUM if level == GOOD else LOW  # other pressings can be worth more or less than yours
+    return level
+
+
+def confidence_note(value: dict) -> str:
+    """Short reason for a low/medium rating, for the screen. Empty for good or non-eBay values."""
+    level = value.get("confidence")
+    if level not in (LOW, MEDIUM):
+        return ""
+    why = []
+    if (value.get("count") or 0) < 10:
+        why.append(f"only {value.get('count')} comparable listings")
+    if "any pressing" in (value.get("basis") or value.get("reason") or ""):
+        why.append("other pressings are mixed in")
+    return f"{CONFIDENCE_TEXT[level]}: {' and '.join(why)}." if why else CONFIDENCE_TEXT[level] + "."

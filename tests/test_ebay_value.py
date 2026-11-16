@@ -86,3 +86,19 @@ def test_modern_and_various_artist_records():
     assert ebay_value._search_artist("Various Artists") == "" and ebay_value._search_artist("Wings") == "Wings"
     assert ebay_value._short_album("Woodstock (Soundtrack)") == "Woodstock"
     assert ebay_value._short_album("A Foot in the Door: The Best of Pink Floyd") == "A Foot in the Door"
+
+
+def test_overpriced_listings_are_ignored_and_thin_estimates_flagged():
+    # One seller asks $75-80 for a record that otherwise lists at $11-$20 (the Willie Nelson case)
+    listings = [{"price": 11, "grade": VGP}, {"price": 15.99, "grade": G}, {"price": 16, "grade": None},
+                {"price": 20, "grade": "Good Plus (G+)"}, {"price": 80, "grade": NM}, {"price": 75, "grade": VGP}]
+    v = valuation.estimate_from_listings(listings, None, "USD", "same catalog number (KC2 37542)")
+    assert v["status"] == valuation.UNKNOWN and "2 listings priced far above the rest were ignored" in v["reason"]
+    # Too few copies to know what's normal: nothing is dropped
+    few = [{"price": 10, "grade": VGP}, {"price": 12, "grade": VGP}, {"price": 90, "grade": VGP}]
+    v = valuation.estimate_from_listings(few, VGP, "USD", "same catalog number (X)")
+    assert v["count"] == 3 and v["confidence"] == valuation.LOW and "only 3" in valuation.confidence_note(v)
+    assert valuation.confidence(12, "same catalog number (X)") == valuation.GOOD
+    assert valuation.confidence(12, "any pressing of the album") == valuation.MEDIUM
+    assert valuation.confidence(6, "any pressing of the album") == valuation.LOW
+    assert valuation.confidence_note({"confidence": valuation.GOOD}) == ""

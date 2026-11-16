@@ -19,3 +19,6 @@ shelf_videos/
 
 # Claude Code local settings
 .claude/
+
+# Clean copy for uploading by hand
+upload_to_github/

@@ -93,10 +93,34 @@ def change_condition(record_id: int, media_condition: str, sleeve_condition: str
     if record.get("suggestions") is not None:
         fields["value"] = valuation.estimate(record["suggestions"], media_condition, currency)
     elif value.get("source") == "ebay" and value.get("listings") is not None:
-        new = valuation.estimate_from_listings(value["listings"], media_condition, currency, value.get("basis", ""))
-        new["basis"] = value.get("basis", "")
-        fields["value"] = new
+        fields["value"] = _from_saved_listings(record, media_condition, currency)
     storage.update_record(record_id, **fields)
+
+
+def _from_saved_listings(record: dict, media_condition, currency: str) -> dict:
+    value = record["value"]
+    new = valuation.estimate_from_listings(value["listings"], media_condition, currency, value.get("basis", ""),
+                                           modern=ebay_value.is_modern(record.get("release") or {}))
+    new["basis"] = value.get("basis", "")
+    return new
+
+
+def reestimate_from_saved() -> int:
+    """Re-works every eBay estimate from its saved listings (no eBay calls). Returns how many changed.
+
+    Used after the estimate rules change, so values update without a full refresh.
+    """
+    changed = 0
+    for record in storage.list_records():
+        value = record.get("value") or {}
+        if value.get("source") != "ebay" or not value.get("listings"):
+            continue
+        new = _from_saved_listings(record, record.get("media_condition"), value.get("currency") or get_currency())
+        if (new["status"], new["typical"], new.get("confidence")) != \
+                (value.get("status"), value.get("typical"), value.get("confidence")):
+            changed += 1
+        storage.update_record(record["id"], value=new)
+    return changed
 
 
 def refresh_all(on_progress=None) -> dict:
