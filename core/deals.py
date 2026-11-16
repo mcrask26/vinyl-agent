@@ -105,18 +105,41 @@ def red_flags(listing: dict, total, ref, grade) -> list:
     return flags
 
 
-def evaluate(listings: list, max_price, min_condition: str, suggestions=None) -> list:
+def apply_reading(cond: dict, reading) -> dict:
+    """Combines the rule-based reading of a listing with Claude's (if there is one).
+
+    The seller's own grading field always wins. Otherwise Claude's grade is used when it found
+    one, and the rules' grade when it didn't. Adds "read_by" ("Claude" or "rules") and "concern".
+    """
+    out = dict(cond, read_by="rules", concern="")
+    if not reading:
+        return out
+    out["concern"] = reading.get("concern") or ""
+    if (cond.get("evidence") or "").startswith("seller's "):
+        return out
+    if reading.get("media"):
+        out.update(media=reading["media"], sleeve=reading.get("sleeve") or cond.get("sleeve"),
+                   evidence=f"“{reading['evidence']}”" if reading.get("evidence") else "the description",
+                   read_by="Claude")
+    return out
+
+
+def evaluate(listings: list, max_price, min_condition: str, suggestions=None, readings=None) -> list:
     """Adds total, grade, rating, reason, flags and whether it fits your limits to each listing.
 
     Each listing is compared with the OTHER listings (leave-one-out), so a listing can't make
     itself look normal. Discogs-only rows (no grade) are compared against all eBay listings.
+    readings: optional {listing_id: Claude's reading of that listing} (see tools/claude.py).
     """
+    readings = readings or {}
     for l in listings:
         cond = grading.parse_listing_condition(l.get("title", ""), l.get("description", ""), l.get("aspects"),
                                                l.get("ebay_condition", ""))
+        cond = apply_reading(cond, readings.get(l.get("listing_id")))
         if l.get("grade_override"):
-            cond = {"media": l["grade_override"], "sleeve": None, "evidence": "from the marketplace"}
-        l.update(total=total_price(l), grade=cond["media"], sleeve_grade=cond["sleeve"], grade_evidence=cond["evidence"])
+            cond.update(media=l["grade_override"], sleeve=None, evidence="from the marketplace", read_by="rules")
+        l.update(total=total_price(l), grade=cond["media"], sleeve_grade=cond["sleeve"],
+                 grade_evidence=cond["evidence"], read_by=cond["read_by"], ai_concern=cond["concern"])
 
     comparable = [l for l in listings if l.get("source") == "eBay" and l["total"] is not None]
     out = []
@@ -127,6 +150,8 @@ def evaluate(listings: list, max_price, min_condition: str, suggestions=None) ->
             ref = reference_from_listings(others)
         rating, reason = rate(l["total"], ref, l.get("currency") or "USD", shipping_known=l.get("shipping") is not None)
         flags = red_flags(l, l["total"], ref, l["grade"])
+        if l.get("ai_concern"):
+            flags.append(f"Claude noticed: {l['ai_concern']}")
         meets_price = max_price is None or (l["total"] is not None and l["total"] <= max_price)
         meets_condition = bool(l["grade"]) and grading.at_least(l["grade"], min_condition)
         out.append(dict(l, rating=rating, reason=reason, flags=flags, suspicious=bool(flags),

@@ -25,7 +25,7 @@ cp .env.example .env             # then paste your keys into .env
 | `EBAY_ZIP` (optional) | your ZIP code | lets eBay include shipping costs to you |
 | `LASTFM_API_KEY` | last.fm/api/account/create → copy the **API key** | Discover recommendations (similar artists) |
 | `SPOTIFY_CLIENT_ID` | developer.spotify.com/dashboard → Create app, Redirect URI `http://127.0.0.1:8501/discover`, tick **Web API** | Spotify vs your shelf (optional) |
-| `ANTHROPIC_API_KEY` (optional, **paid**) | console.anthropic.com | Friendlier recommendation wording. Off by default; free rule-based reasons otherwise |
+| `ANTHROPIC_API_KEY` (optional, **paid**) | console.anthropic.com | Claude reads listing descriptions and picks recommendations (see “What Claude does”). Off unless set; free built-in rules otherwise |
 
 MusicBrainz (Missing Pieces) needs no key.
 
@@ -61,7 +61,7 @@ core/names.py          matching artist/album names written different ways
 tools/lastfm.py        Last.fm client (similar artists, top albums; 4 calls/sec)
 tools/musicbrainz.py   MusicBrainz client (studio albums; 1 call/sec)
 tools/spotify.py       Spotify login (PKCE, read-only "top items") and top artists/tracks
-tools/claude.py        optional Claude rewording of reasons (falls back to rules)
+tools/claude.py        optional Claude: reads listings, picks recommendations (falls back to rules)
 tools/discogs.py       Discogs API client (rate-limited)
 tools/ebay.py          eBay Browse API client (read-only, rate-limited)
 tools/ratelimit.py     shared rate limiter
@@ -140,3 +140,22 @@ The app can run as a free hosted demo so someone else can click through it.
   show a clear "key isn't set" message.
 - Not available in the hosted demo: the daily 9:00 check (it uses this Mac's scheduler) and
   Spotify login (its return address points at this computer).
+
+## What Claude does (optional, paid)
+
+With `ANTHROPIC_API_KEY` set, Claude takes over two jobs. Without it, or whenever Claude has a
+problem (no credit, offline, an odd answer), the built-in rules do the same jobs for free and the
+page says so.
+
+| Job | Where | Model | Without Claude |
+|---|---|---|---|
+| Reads each eBay listing's title and description, gives the record and sleeve grade with the words it's based on, and flags contradictions (“graded VG+ but mentions skips”) or wrong items | Wishlist & Deals, Check now | Claude Haiku 5.5 | Pattern matching on grade words |
+| Chooses the five recommendations from the candidates the app found and writes each reason, tied to records you own | Discover → Recommended | Claude Sonnet 5.5 | A score from similarity and shared styles, with a template sentence |
+
+Limits kept on purpose:
+- Claude never sets prices or the Great Deal / Fair / Overpriced rating; those stay arithmetic on real listings.
+- A seller's own grading field always beats Claude's reading.
+- Claude's answers come back in a fixed JSON shape and are checked before use.
+- Each listing is read once and the reading is saved for 30 days.
+- The unattended daily check doesn't use Claude unless `CLAUDE_DAILY_CHECK=1`.
+- Both pages show how many requests were made and roughly what they cost.

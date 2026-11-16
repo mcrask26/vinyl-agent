@@ -149,7 +149,27 @@ def rule_reason(item: dict, profile: dict) -> str:
     return text
 
 
-def recommend(records: list, wishes: list, spotify_artists=None, n: int = 5, on_progress=None) -> dict:
+def claude_brief(records: list, profile: dict, candidates: list):
+    """(collection summary, candidate facts) to hand to Claude: only facts the app already has."""
+    idx = owned_index(records)
+    artists = sorted(_unique_artists(idx), key=lambda e: -len(e["records"]))[:12]
+    summary = {
+        "records_owned": profile["count"],
+        "most_owned_artists": [{"artist": e["name"], "albums_owned": [r["album"] for r in e["records"]][:8]}
+                               for e in artists],
+        "top_styles": [name for name, _ in profile["styles"].most_common(8)],
+        "decades": dict(sorted(profile["decades"].items())),
+    }
+    facts = [{"artist": c["artist"], "album": c["album"], "year": c.get("year"),
+              "styles": (c.get("styles") or [])[:4],
+              "similar_to_artists_they_own": [b["name"] for b in c["because"][:3] if b.get("owned")],
+              "similar_to_artists_they_stream": [b["name"] for b in c["because"][:3] if not b.get("owned")],
+              "already_on_wishlist": bool(c.get("on_wishlist"))} for c in candidates]
+    return summary, facts
+
+
+def recommend(records: list, wishes: list, spotify_artists=None, n: int = 5, on_progress=None,
+              picker=None) -> dict:
     """Top-n albums by artists you don't own yet, with reasons and prices.
 
     Seeds: your most-owned artists (weighted by how many of their records you have), plus your
@@ -221,14 +241,33 @@ def recommend(records: list, wishes: list, spotify_artists=None, n: int = 5, on_
         c["final"] = c["score"] * (1 + style_share + (0.25 if genre_hit else 0)) * (1 if c["album"] else 0.3)
         c["on_wishlist"] = (norm_artist(c["artist"]), norm_album(c["album"] or "")) in wished
 
-    top = sorted(candidates, key=lambda c: -c["final"])[:n]
+    ranked = sorted(candidates, key=lambda c: -c["final"])
+    top = ranked[:n]
+    for c in top:
+        c["reason"], c["picked_by"] = rule_reason(c, profile), "rules"
+    picked_by = "rules"
+    if picker:
+        # Claude chooses among the candidates the rules found (albums only) and writes the reasons.
+        pool = [c for c in ranked if c["album"]]
+        if on_progress:
+            on_progress((len(seeds) + CANDIDATES_CHECKED) / (len(seeds) + CANDIDATES_CHECKED + n),
+                        "Claude is choosing the best five…")
+        picks, problem = picker(*claude_brief(records, profile, pool), n)
+        if picks:
+            top = []
+            for pick in picks:
+                c = pool[pick["index"]]
+                c["reason"], c["picked_by"] = pick["reason"], "Claude"
+                top.append(c)
+            picked_by = "Claude"
+        elif problem:
+            notes.append(f"{problem} The standard picks and reasons are shown instead.")
     for k, c in enumerate(top, start=1):
         if on_progress:
             on_progress((len(seeds) + CANDIDATES_CHECKED + k) / (len(seeds) + CANDIDATES_CHECKED + n),
                         f"Checking prices for {c['artist']}…")
-        c["reason"] = rule_reason(c, profile)
         c["prices"] = cached_price_check(c["artist"], c["album"], c["master_id"]) if c["album"] else None
-    return {"items": top, "notes": notes, "seeds": [s["name"] for s in seeds]}
+    return {"items": top, "notes": notes, "seeds": [s["name"] for s in seeds], "picked_by": picked_by}
 
 
 # ---------- Adding to the wishlist from Discover ----------

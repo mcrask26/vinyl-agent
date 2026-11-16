@@ -428,6 +428,23 @@ def cached(key: str, max_age_s: float, fetch):
     return value
 
 
+def cache_get(key: str, max_age_s: float):
+    """The saved answer for `key` if younger than max_age_s, else None."""
+    import time
+
+    with connect() as conn:
+        row = conn.execute("SELECT value_json, fetched_at FROM api_cache WHERE key = ?", (key,)).fetchone()
+    return json.loads(row["value_json"]) if row and time.time() - row["fetched_at"] < max_age_s else None
+
+
+def cache_set(key: str, value) -> None:
+    import time
+
+    with connect() as conn:
+        conn.execute("INSERT OR REPLACE INTO api_cache (key, value_json, fetched_at) VALUES (?, ?, ?)",
+                     (key, json.dumps(value), time.time()))
+
+
 def hide_suggestion(kind: str, key: str) -> None:
     with connect() as conn:
         conn.execute("INSERT OR IGNORE INTO hidden_suggestions (kind, key) VALUES (?, ?)", (kind, key))

@@ -71,10 +71,10 @@ def test_one_failing_record_doesnt_stop_the_rest(monkeypatch):
     storage.add_wish("Broken", "Record", "Very Good (VG)", 40)
     real = alerts.wishlist.search_wish
 
-    def flaky(wid):
+    def flaky(wid, **kw):
         if storage.get_wish(wid)["artist"] == "Broken":
             raise RuntimeError("boom")
-        return real(wid)
+        return real(wid, **kw)
     monkeypatch.setattr(alerts.wishlist, "search_wish", flaky)
     result = alerts.check_now()
     assert len(result["new"]) == 1 and result["errors"][0]["wish"] == "Broken – Record"

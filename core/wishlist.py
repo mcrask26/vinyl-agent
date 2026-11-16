@@ -3,9 +3,11 @@
 The page, the "Check now" button and the daily script (step 3) all call search_wish().
 """
 
+import hashlib
+
 from core import deals, storage
 from core.config import MissingKeyError
-from tools import discogs, ebay
+from tools import claude, discogs, ebay
 
 DETAIL_LIMIT = 12  # read the full listing (grading fields, description) for the 12 cheapest
 COMMON_PRESSINGS = 8  # for "any pressing" wishes, price the 8 most-owned vinyl pressings on Discogs
@@ -113,15 +115,51 @@ def _suggestions(wish: dict):
         return None  # locked or unavailable: fall back to comparing listings
 
 
-def search_wish(wish_id: int) -> dict:
+READING_KEPT_S = 30 * 86400  # a listing's text rarely changes, so Claude reads each one once
+
+
+def _reading_key(listing: dict) -> str:
+    text = f"{listing.get('title')}|{listing.get('description')}|{sorted((listing.get('aspects') or {}).items())}"
+    return f"claude:listing:{listing.get('listing_id')}:{hashlib.sha1(text.encode()).hexdigest()[:12]}"
+
+
+def claude_readings(wish: dict, listings: list, errors: list) -> dict:
+    """{listing_id: Claude's reading} for the eBay listings, or {} when Claude is off.
+
+    Readings are saved, so a listing seen before costs nothing. A Claude problem is added to
+    `errors` as a note and the search carries on with the rule-based grades.
+    """
+    if not claude.enabled():
+        return {}
+    out, unread = {}, []
+    for l in listings:
+        saved = storage.cache_get(_reading_key(l), READING_KEPT_S)
+        if saved is not None:
+            out[l["listing_id"]] = saved
+        else:
+            unread.append(l)
+    if unread:
+        fresh, problem = claude.read_listings(wish["artist"], wish["album"], unread)
+        for l in unread:
+            if fresh and l["listing_id"] in fresh:
+                out[l["listing_id"]] = fresh[l["listing_id"]]
+                storage.cache_set(_reading_key(l), fresh[l["listing_id"]])
+        if problem:
+            errors.append({"source": "Claude", "note": True,
+                           "message": f"{problem} Conditions were read by the built-in rules instead."})
+    return out
+
+
+def search_wish(wish_id: int, use_claude: bool = True) -> dict:
     """Searches everything for one wishlist record, rates the listings and saves them."""
     wish = storage.get_wish(wish_id)
     errors = []
     listings = _ebay_listings(wish, errors)
+    readings = claude_readings(wish, listings, errors) if use_claude else {}
     row = _discogs_row(wish, errors)
     if row:
         listings.append(row)
-    rated = deals.evaluate(listings, wish["max_price"], wish["min_condition"], _suggestions(wish))
+    rated = deals.evaluate(listings, wish["max_price"], wish["min_condition"], _suggestions(wish), readings)
     for l in rated:  # keep saved results small
         l["description"] = (l.get("description") or "")[:400]
         l.pop("aspects", None)

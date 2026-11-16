@@ -182,4 +182,4 @@ def test_lastfm_parsing_and_errors(monkeypatch):
 def test_claude_is_optional(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     monkeypatch.setattr("core.config._SECRETS_FILES", ())
-    assert not claude.enabled() and claude.rewrite_reasons(["a"]) is None
+    assert not claude.enabled() and claude.pick_records({}, [{}] * 8)[0] is None

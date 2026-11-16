@@ -6,7 +6,7 @@ from core import deals, discover, storage
 from core.config import (MissingKeyError, get_lastfm_key, get_spotify_client_id, get_spotify_redirect_uri)
 from core.format import ago, money
 from core.names import norm_artist
-from core.ui import flash, md, show_flash
+from core.ui import claude_status, flash, md, show_flash
 from tools import claude, spotify
 
 RATING_BADGE = {deals.GREAT: "🟢 Great Deal", deals.FAIR: "🟡 Fair", deals.OVER: "🔴 Overpriced",
@@ -84,6 +84,7 @@ st.title("Discover")
 st.caption("New records picked from what you own and what you stream. Nothing here is bought: "
            "you can add things to your wishlist, and the deal finder takes it from there.")
 show_flash()
+claude_status()
 
 records = storage.list_records()
 wishes = storage.list_wishes()
@@ -121,30 +122,27 @@ with tab_recs:
     b1, b2 = st.columns([1, 2], vertical_alignment="center")
     use_claude = False
     if claude.enabled():
-        use_claude = b2.toggle("Friendlier wording by Claude (uses your paid Anthropic key)", value=False)
+        use_claude = b2.toggle("Let Claude pick the five and explain why (about 3 cents each time)", value=True,
+                               help="On: Claude chooses from the candidates the app found and writes each reason. "
+                                    "Off: the app's built-in scoring picks them, for free.")
     if b1.button("Find recommendations" if not saved else "Refresh recommendations", type="primary",
                  icon=":material/auto_awesome:", disabled=bool(lastfm_missing) or not records, width="stretch"):
         bar, prog = progress_bar("Reading your collection…")
         spotify_names = [a["name"] for a in (sp_top or {}).get("artists", {}).get("medium_term", [])]
         try:
-            result = discover.recommend(records, wishes, spotify_names, on_progress=prog)
+            result = discover.recommend(records, wishes, spotify_names, on_progress=prog,
+                                        picker=claude.pick_records if use_claude else None)
         except discover.DiscoverError as exc:
             bar.empty()
             st.error(str(exc))
         else:
-            if use_claude:
-                better = claude.rewrite_reasons([i["reason"] for i in result["items"]])
-                if better:
-                    for item, text in zip(result["items"], better):
-                        item["reason"] = text
-                else:
-                    result["notes"].append("Claude wasn't available, so the standard reasons are shown.")
             storage.set_state("recommendations", result)
             bar.empty()
             st.rerun()
 
     if saved:
-        st.caption(f"Picked {ago(storage.state_updated_at('recommendations'))} from similar artists to "
+        who = "by Claude" if saved.get("picked_by") == "Claude" else "by the app's scoring"
+        st.caption(f"Picked {who} {ago(storage.state_updated_at('recommendations'))} from similar artists to "
                    f"{', '.join(saved['seeds'][:5])}{'…' if len(saved['seeds']) > 5 else ''} (Last.fm) "
                    "and your Discogs styles.")
         if not saved["items"]:

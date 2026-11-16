@@ -113,9 +113,20 @@ def get_musicbrainz_contact() -> str:
 
 
 def get_anthropic_key() -> str:
-    """Optional, paid: Claude writes friendlier recommendation reasons. Empty = rule-based reasons (free)."""
+    """Optional, paid: Claude reads listing descriptions and picks recommendations. Empty = free rules only."""
     return _setting("ANTHROPIC_API_KEY")
 
 
 def get_claude_model() -> str:
-    return _setting("CLAUDE_MODEL") or "claude-opus-5-5"
+    """The model for jobs that need judgment (picking recommendations)."""
+    return _setting("CLAUDE_MODEL") or "claude-sonnet-5-5"
+
+
+def get_claude_fast_model() -> str:
+    """The model for bulk reading (grading listing descriptions)."""
+    return _setting("CLAUDE_FAST_MODEL") or "claude-haiku-5-5"
+
+
+def claude_in_daily_check() -> bool:
+    """Whether the unattended daily check may spend Claude credit. Off unless CLAUDE_DAILY_CHECK=1."""
+    return _setting("CLAUDE_DAILY_CHECK").lower() in ("1", "true", "yes", "on")

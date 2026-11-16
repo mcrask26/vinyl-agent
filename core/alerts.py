@@ -6,6 +6,7 @@ each alert links to the listing, and you decide and pay there yourself.
 """
 
 from core import deals, storage, wishlist
+from core.config import claude_in_daily_check
 
 
 def check_now(trigger: str = "button", on_progress=None) -> dict:
@@ -16,17 +17,19 @@ def check_now(trigger: str = "button", on_progress=None) -> dict:
     """
     wishes = storage.list_wishes()
     new, errors = [], []
+    # The unattended daily run doesn't spend Claude credit unless you opt in (CLAUDE_DAILY_CHECK=1).
+    use_claude = trigger == "button" or claude_in_daily_check()
     for i, wish in enumerate(wishes, start=1):
         name = f"{wish['artist']} – {wish['album']}"
         if on_progress:
             on_progress(i, len(wishes), wish)
         try:
-            wish = wishlist.search_wish(wish["id"])
+            wish = wishlist.search_wish(wish["id"], use_claude=use_claude)
         except Exception as exc:  # report it and keep going with the next record
             errors.append({"wish": name, "source": "Search", "message": f"Search failed: {exc}"})
             continue
         for err in wish.get("errors") or []:
-            if not err.get("setup"):
+            if not err.get("setup") and not err.get("note"):
                 errors.append({"wish": name, "source": err["source"], "message": err["message"]})
         worthy = [l for l in wish["results"] or [] if deals.is_alert_worthy(l)]
         new += storage.save_alerts(wish, worthy)

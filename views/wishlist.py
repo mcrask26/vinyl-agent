@@ -6,7 +6,7 @@ import streamlit as st
 from core import deals, grading, storage, wishlist
 from core.config import MissingKeyError, get_discogs_token, get_ebay_credentials
 from core.format import ago, money
-from core.ui import flash, md, show_flash
+from core.ui import claude_status, flash, md, show_flash
 from tools import discogs
 
 RATING_LABEL = {deals.GREAT: "🟢 Great Deal", deals.FAIR: "🟡 Fair", deals.OVER: "🔴 Overpriced",
@@ -82,6 +82,7 @@ if keys["discogs"]:
 if keys["ebay"]:
     st.info(keys["ebay"], icon=":material/storefront:")
 show_flash()
+claude_status()
 
 wishes = storage.list_wishes()
 
@@ -227,7 +228,7 @@ for w in wishes:
             if err.get("setup"):
                 setup_errors_shown.add(err["source"])  # already explained at the top of the page
                 continue
-            st.warning(md(f"{err['source']}: {err['message']}"))
+            (st.caption if err.get("note") else st.warning)(md(f"{err['source']}: {err['message']}"))
 
         if w["checked_at"] is None:
             st.caption("Click “Search now” to find listings.")
@@ -280,4 +281,5 @@ for w in wishes:
         )
         with st.popover("How the condition was read"):
             for l in shown:
-                st.caption(md(f"**{grade_text(l)}** ← {l.get('grade_evidence') or 'nothing in the listing'} · {l['title'][:70]}"))
+                by = " (read by Claude)" if l.get("read_by") == "Claude" else ""
+                st.caption(md(f"**{grade_text(l)}**{by} ← {l.get('grade_evidence') or 'nothing in the listing'} · {l['title'][:70]}"))
